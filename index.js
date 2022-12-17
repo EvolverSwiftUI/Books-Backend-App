@@ -2,6 +2,8 @@ const express = require("express");
 const {open} = require("sqlite");
 const sqlite3 = require("sqlite3");
 const path = require("path");
+const bcrypt = require("bcrypt");
+const { off } = require("process");
 
 const app = express();
 app.use(express.json());
@@ -28,8 +30,21 @@ initializeDBAndServer();
 
 // Get Books API
 app.get("/books/", async (request, response) => {
+    const {limit, offset, order_by, order, search_q} = request.query;
+
     const getBooksQuery = `
-        SELECT * FROM Book ORDER BY id;
+        SELECT 
+            * 
+        FROM 
+            Book
+        WHERE
+            title LIKE '%${search_q}%'    
+        ORDER BY
+            ${order_by} ${order}
+        LIMIT 
+             ${limit} 
+        OFFSET 
+             ${offset};
     `;
     const booksArray = await db.all(getBooksQuery);
     response.send(booksArray);
@@ -113,7 +128,7 @@ app.delete("/books/:bookId", async (request, response) => {
 });
 
 
-// Get Category Based Books List
+// Get Category Based Books List API
 app.get("/category/:categoryId/books/", async (request, response) => {
     const {categoryId} = request.params;
     const getCategoryBooksQuery = `
@@ -126,4 +141,49 @@ app.get("/category/:categoryId/books/", async (request, response) => {
     `;
     const booksArray = await db.all(getCategoryBooksQuery);
     response.send(booksArray);
+});
+
+// Create a New User API
+app.post("/users/", async (request, response) => {
+    const { username, name, password, gender, location} = request.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const selectuserQuery = `
+        SELECT 
+          * 
+        FROM 
+          User 
+        WHERE 
+          username = '${username}';`;
+
+    const dbUser = await db.get(selectuserQuery);
+
+    if (dbUser === undefined) {
+        // create a new user.
+        const createUserQuery = `
+        INSERT INTO
+            User(username, name, password, gender, location)
+        VALUES
+            (
+                '${username}',
+                '${name}',
+                '${hashedPassword}',
+                '${gender}',
+                '${location}'
+            );    
+        `;
+        await db.run(createUserQuery);
+        response.send("User Created Successfully.")
+    } else {
+        response.status(400);
+        response.send("Username alredy exists.");
+    }
+});
+
+// Get Users API 
+app.get("/users/", async (request, response) => {
+    const getUsersQuery = `
+        SELECT * FROM User;
+    `;
+   const usersArray = await db.all(getUsersQuery);
+   response.send(usersArray);
 });
