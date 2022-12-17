@@ -31,8 +31,12 @@ const initializeDBAndServer = async () => {
 
 initializeDBAndServer();
 
-// Get Books API.
-app.get("/books/", async (request, response) => {
+const logger = (request, response, next) => {
+    console.log(request.query);
+    next();
+};
+
+const authenticateToken = (request, response, next) => {
     let jwtToken;
     const authHeader = request.headers["authorization"];
     if (authHeader !== undefined) {
@@ -47,30 +51,35 @@ app.get("/books/", async (request, response) => {
                 response.status(401);
                 response.send("Invalid Access Token.");
             } else {
-                const {limit, offset, order_by, order, search_q} = request.query;
-                const getBooksQuery = `
-                    SELECT 
-                        * 
-                    FROM 
-                        Book
-                    WHERE
-                        title LIKE '%${search_q}%'    
-                    ORDER BY
-                        ${order_by} ${order}
-                    LIMIT 
-                        ${limit} 
-                    OFFSET 
-                        ${offset};
-                `;
-                const booksArray = await db.all(getBooksQuery);
-                response.send(booksArray);
+                next();
             }
         });
     }
+};
+
+// Get Books API.
+app.get("/books/", authenticateToken, async (request, response) => {
+    const {limit, offset, order_by, order, search_q} = request.query;
+    const getBooksQuery = `
+        SELECT 
+            * 
+        FROM 
+            Book
+        WHERE
+            title LIKE '%${search_q}%'    
+        ORDER BY
+            ${order_by} ${order}
+        LIMIT 
+            ${limit} 
+        OFFSET 
+            ${offset};
+    `;
+    const booksArray = await db.all(getBooksQuery);
+    response.send(booksArray);
 });
 
 // Get Book Details API.
-app.get("/books/:bookId/", async (request, response) => {
+app.get("/books/:bookId/", authenticateToken, async (request, response) => {
     const {bookId} = request.params;
     const getBookQuery = `
         SELECT * FROM Book WHERE id = '${bookId}';
@@ -80,7 +89,7 @@ app.get("/books/:bookId/", async (request, response) => {
 });
 
 // Add Book API.
-app.post("/books/", async (request, response) => {
+app.post("/books/", authenticateToken, async (request, response) => {
     const bookDetails = request.body;
     const { id, pub_id, title, price, category, quantity, b_format, prod_year, filesize } = bookDetails;
     
@@ -108,7 +117,7 @@ app.post("/books/", async (request, response) => {
 });
 
 // Update Book API.
-app.put("/books/:bookId/", async (request, response) => {
+app.put("/books/:bookId/", authenticateToken, async (request, response) => {
     const { bookId } = request.params;
     const  bookDetails  = request.body;
     const { pub_id, title, price, category, quantity, b_format, prod_year, filesize } = bookDetails;
@@ -134,7 +143,7 @@ app.put("/books/:bookId/", async (request, response) => {
 });
 
 // Delete Book API.
-app.delete("/books/:bookId", async (request, response) => {
+app.delete("/books/:bookId", authenticateToken, async (request, response) => {
     const {bookId} = request.params;
     const deleteBookQuery = `
         DELETE FROM 
@@ -148,7 +157,7 @@ app.delete("/books/:bookId", async (request, response) => {
 
 
 // Get Books API based on Category.
-app.get("/category/:categoryId/books/", async (request, response) => {
+app.get("/category/:categoryId/books/", authenticateToken, async (request, response) => {
     const {categoryId} = request.params;
     const getCategoryBooksQuery = `
         SELECT 
@@ -164,7 +173,7 @@ app.get("/category/:categoryId/books/", async (request, response) => {
 
 // Create a New User API (or) User Register API.
 app.post("/users/", async (request, response) => {
-    const { username, name, password, gender, location} = request.body;
+    const { username, name, password, gender, location } = request.body;
     const hashedPassword = await bcrypt.hash(password, 10);
     const selectuserQuery = `
         SELECT 
@@ -199,7 +208,7 @@ app.post("/users/", async (request, response) => {
 });
 
 // Get Users API.
-app.get("/users/", async (request, response) => {
+app.get("/users/", authenticateToken, async (request, response) => {
     const getUsersQuery = `
         SELECT * FROM User;
     `;
