@@ -1,9 +1,12 @@
 const express = require("express");
+const path = require("path");
+
 const {open} = require("sqlite");
 const sqlite3 = require("sqlite3");
-const path = require("path");
 const bcrypt = require("bcrypt");
-const { off } = require("process");
+const jwt = require("jsonwebtoken")
+
+const MY_SECRET_TOKEN = "NSRNSRNSRNSR";
 
 const app = express();
 app.use(express.json());
@@ -28,7 +31,7 @@ const initializeDBAndServer = async () => {
 
 initializeDBAndServer();
 
-// Get Books API
+// Get Books API.
 app.get("/books/", async (request, response) => {
     const {limit, offset, order_by, order, search_q} = request.query;
 
@@ -50,7 +53,7 @@ app.get("/books/", async (request, response) => {
     response.send(booksArray);
 });
 
-// Get Single Book Details API
+// Get Book Details API.
 app.get("/books/:bookId/", async (request, response) => {
     const {bookId} = request.params;
     const getBookQuery = `
@@ -60,7 +63,7 @@ app.get("/books/:bookId/", async (request, response) => {
     response.send(book);
 });
 
-// Add Book API
+// Add Book API.
 app.post("/books/", async (request, response) => {
     const bookDetails = request.body;
     const { id, pub_id, title, price, category, quantity, b_format, prod_year, filesize } = bookDetails;
@@ -88,7 +91,7 @@ app.post("/books/", async (request, response) => {
     response.send({bookId: bookId});
 });
 
-// Update Book API
+// Update Book API.
 app.put("/books/:bookId/", async (request, response) => {
     const { bookId } = request.params;
     const  bookDetails  = request.body;
@@ -114,7 +117,7 @@ app.put("/books/:bookId/", async (request, response) => {
     response.send("Book Updated Successfully.")
 });
 
-// Delete Book API
+// Delete Book API.
 app.delete("/books/:bookId", async (request, response) => {
     const {bookId} = request.params;
     const deleteBookQuery = `
@@ -128,7 +131,7 @@ app.delete("/books/:bookId", async (request, response) => {
 });
 
 
-// Get Category Based Books List API
+// Get Books API based on Category.
 app.get("/category/:categoryId/books/", async (request, response) => {
     const {categoryId} = request.params;
     const getCategoryBooksQuery = `
@@ -143,7 +146,7 @@ app.get("/category/:categoryId/books/", async (request, response) => {
     response.send(booksArray);
 });
 
-// Create a New User API
+// Create a New User API (or) User Register API.
 app.post("/users/", async (request, response) => {
     const { username, name, password, gender, location} = request.body;
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -179,7 +182,7 @@ app.post("/users/", async (request, response) => {
     }
 });
 
-// Get Users API 
+// Get Users API.
 app.get("/users/", async (request, response) => {
     const getUsersQuery = `
         SELECT * FROM User;
@@ -187,3 +190,36 @@ app.get("/users/", async (request, response) => {
    const usersArray = await db.all(getUsersQuery);
    response.send(usersArray);
 });
+
+// Validate User API (or) User Login API.
+app.post("/login/", async (request, response) => {
+    const {username, password} = request.body;
+    const selectuserQuery = `
+        SELECT 
+          *
+        FROM
+          User
+        WHERE
+          username = '${username}';
+    `;
+    const dbUser = await db.get(selectuserQuery);
+    if (dbUser === undefined) {
+        // user does't exist.
+        response.status(400);
+        response.send("Invalid User.")
+    } else {
+        // compare password and hashedPassword.
+        const isPasswordMatched = await bcrypt.compare(password, dbUser.password);
+        console.log(isPasswordMatched);
+        if (isPasswordMatched === true) {
+            const payload = { username: username};
+            const jwtToken = jwt.sign(payload, MY_SECRET_TOKEN);
+            // response.send("Login Successful.");
+            response.send({ jwtToken });
+        } else {
+            response.status(400);
+            response.send("Invalid Password");
+        }
+    }
+});
+
