@@ -4,7 +4,8 @@ const path = require("path");
 const {open} = require("sqlite");
 const sqlite3 = require("sqlite3");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
+const { response } = require("express");
 
 const MY_SECRET_TOKEN = "NSRNSRNSRNSR";
 
@@ -46,11 +47,12 @@ const authenticateToken = (request, response, next) => {
         response.status(401);
         response.send("Invalid Access Token.");
     } else {
-        jwt.verify(jwtToken, MY_SECRET_TOKEN, async (error, user) => {
+        jwt.verify(jwtToken, MY_SECRET_TOKEN, async (error, payload) => {
             if (error) {
                 response.status(401);
                 response.send("Invalid Access Token.");
             } else {
+                request.username = payload.username;
                 next();
             }
         });
@@ -248,3 +250,10 @@ app.post("/login/", async (request, response) => {
     }
 });
 
+// Get Profile API.
+app.get("/profile/", authenticateToken, async (request, response) => {
+    const {username} = request;
+    const getUserQuery = `SELECT * FROM User WHERE username = '${username}'`;
+    const userDetails = await db.get(getUserQuery);
+    response.send(userDetails);
+}); 
