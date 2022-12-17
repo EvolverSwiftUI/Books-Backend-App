@@ -33,24 +33,40 @@ initializeDBAndServer();
 
 // Get Books API.
 app.get("/books/", async (request, response) => {
-    const {limit, offset, order_by, order, search_q} = request.query;
-
-    const getBooksQuery = `
-        SELECT 
-            * 
-        FROM 
-            Book
-        WHERE
-            title LIKE '%${search_q}%'    
-        ORDER BY
-            ${order_by} ${order}
-        LIMIT 
-             ${limit} 
-        OFFSET 
-             ${offset};
-    `;
-    const booksArray = await db.all(getBooksQuery);
-    response.send(booksArray);
+    let jwtToken;
+    const authHeader = request.headers["authorization"];
+    if (authHeader !== undefined) {
+        jwtToken = authHeader.split(" ")[1];
+    }
+    if (jwtToken === undefined) {
+        response.status(401);
+        response.send("Invalid Access Token.");
+    } else {
+        jwt.verify(jwtToken, MY_SECRET_TOKEN, async (error, user) => {
+            if (error) {
+                response.status(401);
+                response.send("Invalid Access Token.");
+            } else {
+                const {limit, offset, order_by, order, search_q} = request.query;
+                const getBooksQuery = `
+                    SELECT 
+                        * 
+                    FROM 
+                        Book
+                    WHERE
+                        title LIKE '%${search_q}%'    
+                    ORDER BY
+                        ${order_by} ${order}
+                    LIMIT 
+                        ${limit} 
+                    OFFSET 
+                        ${offset};
+                `;
+                const booksArray = await db.all(getBooksQuery);
+                response.send(booksArray);
+            }
+        });
+    }
 });
 
 // Get Book Details API.
