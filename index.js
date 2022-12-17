@@ -5,7 +5,6 @@ const {open} = require("sqlite");
 const sqlite3 = require("sqlite3");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { response } = require("express");
 
 const MY_SECRET_TOKEN = "NSRNSRNSRNSR";
 
